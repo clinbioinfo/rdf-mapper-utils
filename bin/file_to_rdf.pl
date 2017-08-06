@@ -38,6 +38,7 @@ my ($infile,
     $outdir, 
     $outfile,
     $infile_type,
+    $mapper_config_file,
     $log_level, 
     $help, 
     $logfile, 
@@ -50,6 +51,7 @@ my $results = GetOptions (
       'log_level|d=s'           => \$log_level, 
       'help|h'                  => \$help,
       'man|m'                   => \$man,
+      'mapper_config_file=s'    => \$mapper_config_file,
       'infile=s'                => \$infile,
       'infile_type=s'           => \$infile_type,
       'config_file=s'           => \$config_file,
@@ -77,6 +79,7 @@ if (!defined($config_manager)){
 
 my $manager = RDFMapperUtils::Manager::getInstance(
     config_file          => $config_file,
+    mapper_config_file   => $mapper_config_file,
     outdir               => $outdir,
     outfile              => $outfile,
     verbose              => $verbose,
@@ -88,7 +91,7 @@ if (!defined($manager)){
     $logger->logdie("Could not instantiate RDFMapperUtils::Manager");
 }
     
-$manager->generateMapperConfigFile();
+$manager->generateRDFFile();
 
 if ($verbose){
 
@@ -142,6 +145,13 @@ sub checkCommandLineArguments {
     }
 
     my $fatalCtr=0;
+
+    if (!defined($mapper_config_file)){
+        
+        printBoldRed("--mapper_config_file was not specified");
+        
+        $fatalCtr++;
+    }
 
     if (!defined($infile)){
         

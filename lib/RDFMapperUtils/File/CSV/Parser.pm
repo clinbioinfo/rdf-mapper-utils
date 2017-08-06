@@ -128,8 +128,11 @@ sub _parse_header_row {
         if (! exists $unique_lookup->{$column_name}){
             $unique_ctr++;
             $unique_lookup->{$column_name}++;
-            push(@{$self->{_column_names_list}}, $column_name);
+            push(@{$self->{_column_names_list}}, $column_name);            
         }
+
+        $self->{_name_to_position_lookup}->{$column_name} = $field_ctr;
+        $self->{_position_to_name_lookup}->{$field_ctr} = $column_name;
     }
 
     if ($field_ctr != $unique_ctr){
@@ -137,6 +140,71 @@ sub _parse_header_row {
     }
 
     $self->{_logger}->info("Finished processing the column header section");
+}
+
+sub getNameToPositionLookup {
+
+    my $self = shift;
+
+    if (! exists $self->{_name_to_position_lookup}){
+        $self->_parse_file_for_records(@_);
+    }
+
+    return $self->{_name_to_position_lookup};
+}
+
+sub getPositionToNameLookup {
+
+    my $self = shift;
+
+    if (! exists $self->{_position_to_name_lookup}){
+        $self->_parse_file_for_records(@_);
+    }
+    
+    return $self->{_position_to_name_lookup};
+}
+
+sub getRecordList {
+
+    my $self = shift;
+
+    if (! exists $self->{_record_list}){
+        $self->_parse_file_for_records(@_);
+    }
+
+    $self->{_record_list};
+}
+
+sub _parse_file_for_records {
+
+    my $self = shift;
+
+    my $infile = $self->getInfile();
+
+    my $csv = Text::CSV->new ( { binary => 1 } )  # should set binary attribute.
+        or $self->{_logger}->logconfess("Cannot use CSV: ".Text::CSV->error_diag ());
+    
+    open my $fh, "<:encoding(utf8)", $infile or $self->{_logger}->logconfess("Could not open file '$infile' in read mode : $!");
+
+    my $lineCtr = 0;
+   
+    while ( my $row = $csv->getline( $fh ) ) {
+
+        $lineCtr++;
+
+        if ($lineCtr == 1){
+            $self->_parse_header_row($row);
+            next;
+        }
+
+        push(@{$self->{_record_list}}, $row);
+    }
+
+    $csv->eof or $csv->error_diag();
+
+    close $fh;
+
+    $self->{_logger}->info("Processed '$lineCtr' in file '$infile'");
 }
 
 no Moose;

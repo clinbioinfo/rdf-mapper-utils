@@ -11,6 +11,7 @@ use RDFMapperUtils::Logger;
 use RDFMapperUtils::Config::Manager;
 use RDFMapperUtils::File::Parser::Factory;
 use RDFMapperUtils::Mapper::Config::File::INI::Writer;
+use RDFMapperUtils::RDF::File::Writer::Factory;
 
 use constant TRUE  => 1;
 use constant FALSE => 0;
@@ -26,6 +27,8 @@ use constant DEFAULT_OUTDIR => '/tmp/' . DEFAULT_USERNAME . '/' . File::Basename
 use constant DEFAULT_INDIR => File::Spec->rel2abs(cwd());
 
 use constant DEFAULT_INFILE_TYPE => 'csv';
+
+use constant DEFAULT_RDF_FILE_TYPE => 'turtle';
 
 ## Singleton support
 my $instance;
@@ -89,6 +92,15 @@ has 'outfile' => (
     writer   => 'setOutfile',
     reader   => 'getOutfile',
     required => FALSE
+    );
+
+has 'rdf_file_type' => (
+    is       => 'rw',
+    isa      => 'Str',
+    writer   => 'setRDFFileType',
+    reader   => 'getRDFFileType',
+    required => FALSE,
+    default  => DEFAULT_RDF_FILE_TYPE
     );
 
 sub getInstance {
@@ -221,6 +233,57 @@ sub generateMapperConfigFile {
     $self->{_writer}->writeFile();
 }
 
+sub generateRDFFile {
+
+    my $self = shift;
+
+    my $record_list = $self->{_parser}->getRecordList();
+    if (!defined($record_list)){
+        $self->{_logger}->logconfess("record_list was not defined");
+    }
+
+    my $position_to_name_lookup = $self->{_parser}->getPositionToNameLookup();
+    if (!defined($position_to_name_lookup)){
+        $self->{_logger}->logconfess("position_to_name_lookup was not defined");
+    }
+
+    my $name_to_position_lookup = $self->{_parser}->getPositionToNameLookup();
+    if (!defined($name_to_position_lookup)){
+        $self->{_logger}->logconfess("name_to_position_lookup was not defined");
+    }
+
+    my $writer = $self->_initRDFFileWriter();
+
+    $writer->setRecordList($record_list);
+
+    $writer->setPositionToNameLookup($position_to_name_lookup);
+
+    $writer->setNameToPositionLookup($name_to_position_lookup);
+    
+    $writer->writeFile();
+}
+
+sub _initRDFFileWriter {
+
+    my $self = shift;
+
+    my $factory = RDFMapperUtils::RDF::File::Writer::Factory::getInstance(type => $self->getRDFFileType());
+    if (!defined($factory)){
+        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::RDF::File::Writer::Factory");
+    }
+
+    my $writer = $factory->create();
+
+    if (!defined($writer)){
+        $self->{_logger}->logconfess("writer was not defined");
+    }
+
+    $writer->setInfile($self->getInfile());
+
+    $writer->setInfileType($self->getInfileType());
+
+    return $writer;
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
