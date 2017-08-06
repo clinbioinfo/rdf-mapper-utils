@@ -105,7 +105,7 @@ sub writeFile {
         print OUTFILE ";; Uncomment next line if you wish to transform the name of this column during mapping process.\n";
         print OUTFILE ";;transform='your value here'\n";
         print OUTFILE ";; Next, using a comma-separated list- specify the type to assign to the values in this column.\n";
-        print OUTFILE "isa=\n";
+        print OUTFILE "isa_type=\n";
         print OUTFILE ";; Next, specify the relationship and the corresponding column name e.g.: relationship-type=column-name. You can insert as many as needed.\n";
         print OUTFILE "'your-relationship-1'='your-column-1'\n";
         print OUTFILE "'your-relationship-2'='your-column-2'\n";
