@@ -53,6 +53,22 @@ has 'outdir' => (
     default  => DEFAULT_OUTDIR
 );
 
+my $instance;
+
+sub getInstance {
+
+    if (!defined($instance)){
+
+        $instance = new RDFMapperUtils::Mapper::Config::File::INI::Writer(@_);
+        
+        if (!defined($instance)){
+            confess "Could not instantiate RDFMapperUtils::Mapper::Config::File::INI::Writer";
+        }
+    }
+    
+    return $instance;
+}
+
 sub BUILD {
 
     my $self = shift;

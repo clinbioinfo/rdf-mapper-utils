@@ -13,7 +13,7 @@ use lib "$FindBin::Bin/../lib";
 
 use RDFMapperUtils::Logger;
 use RDFMapperUtils::Config::Manager;
-use RDFMapperUtils::Manager;
+use RDFMapperUtils::ConfigFileGenerator;
 
 use constant TRUE => 1;
 
@@ -75,7 +75,7 @@ if (!defined($config_manager)){
     $logger->logdie("Could not instantiate RDFMapperUtils::Config::Manager");
 }
 
-my $manager = RDFMapperUtils::Manager::getInstance(
+my $generator = RDFMapperUtils::ConfigFileGenerator::getInstance(
     config_file          => $config_file,
     outdir               => $outdir,
     outfile              => $outfile,
@@ -84,11 +84,11 @@ my $manager = RDFMapperUtils::Manager::getInstance(
     infile_type          => $infile_type,
     );
 
-if (!defined($manager)){
-    $logger->logdie("Could not instantiate RDFMapperUtils::Manager");
+if (!defined($generator)){
+    $logger->logdie("Could not instantiate RDFMapperUtils::ConfigFileGenerator");
 }
     
-$manager->generateMapperConfigFile();
+$generator->generateMapperConfigFile();
 
 if ($verbose){
 
@@ -139,33 +139,6 @@ sub checkCommandLineArguments {
     if ($help){
 
     	&pod2usage({-exitval => 1, -verbose => 1, -output => \*STDOUT});
-    }
-
-    my $fatalCtr=0;
-
-    if (!defined($infile)){
-        
-    	printBoldRed("--infile was not specified");
-        
-    	$fatalCtr++;
-    }
-    else {
-
-        $infile = File::Spec->rel2abs($infile);
-
-        &checkInfileStatus($infile);
-    }
-
-
-    if (!defined($infile_type)){
-        
-        printBoldRed("--infile_type was not specified");
-        
-        $fatalCtr++;
-    }
-
-    if ($fatalCtr> 0 ){
-    	die "Required command-line arguments were not specified\n";
     }
 
     if (!defined($verbose)){
@@ -220,6 +193,34 @@ sub checkCommandLineArguments {
         
     	printYellow("--logfile was not specified and therefore was set to '$logfile'");        
     }
+
+    if (!defined($infile_type)){
+        
+        $infile_type = DEFAULT_INFILE_TYPE;
+
+        printYellow("--infile_type was not specified and therefore was set to default '$infile_type'");        
+    }
+
+    my $fatalCtr=0;
+
+    if (!defined($infile)){
+        
+        printBoldRed("--infile was not specified");
+        
+        $fatalCtr++;
+    }
+    else {
+
+        $infile = File::Spec->rel2abs($infile);
+
+        &checkInfileStatus($infile);
+    }
+
+    if ($fatalCtr> 0 ){
+        die "Required command-line arguments were not specified\n";
+    }
+
+
 }
 
 sub getInputFileBasename {

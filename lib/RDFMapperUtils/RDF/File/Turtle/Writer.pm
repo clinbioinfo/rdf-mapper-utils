@@ -1,7 +1,9 @@
 package RDFMapperUtils::RDF::File::Turtle::Writer;
 
 use Moose;
-use RDFMapperUtils::Mapper::Config::File::Parser;
+use Data::Dumper;
+
+use RDFMapperUtils::Mapper::Config::File::INI::Parser;
 
 use constant TRUE  => 1;
 use constant FALSE => 0;
@@ -86,13 +88,28 @@ has 'outdir' => (
     default  => DEFAULT_OUTDIR
 );
 
+my $instance;
+
+sub getInstance {
+
+    if (!defined($instance)){
+
+        $instance = new RDFMapperUtils::RDF::File::Turtle::Writer(@_);
+        
+        if (!defined($instance)){
+            confess "Could not instantiate RDFMapperUtils::RDF::File::Turtle::Writer";
+        }
+    }
+    return $instance;
+}
+
 sub BUILD {
 
     my $self = shift;
 
     $self->_initLogger(@_);
 
-    $self->_initMapperConfigFileParser(@_);
+    # $self->_initMapperConfigFileParser(@_);
 
     $self->{_logger}->info("Instantiated ". __PACKAGE__);
 }
@@ -113,9 +130,9 @@ sub _initMapperConfigFileParser {
 
     my $self = shift;
 
-    my $parser = RDFMapperUtils::Mapper::Config::File::Parser::getInstance(@_);
+    my $parser = RDFMapperUtils::Mapper::Config::File::INI::Parser::getInstance(@_);
     if (!defined($parser)){
-        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::Mapper::Config::File::Parser");
+        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::Mapper::Config::File::INI::Parser");
     }
 
     $self->{_mapper_parser} = $parser;
@@ -126,6 +143,8 @@ sub writeFile {
 
     my $self = shift;
 
+    $self->_initMapperConfigFileParser();
+    
     my $record_list = $self->getRecordList();
     if (!defined($record_list)){
         $self->{_logger}->logconfess("record_list was not defined");
@@ -135,24 +154,96 @@ sub writeFile {
 
     my $position_to_name_lookup = $self->getPositionToNameLookup();
 
+    my $record_ctr = 0;
+
+    $self->{_has_rules_ctr} = 0;
+    $self->{_no_rules_ctr} = 0;
+
+
+    my $outfile = $self->getOutfile();
+
+    open (OUTFILE, ">$outfile") || $self->{_logger}->logconfess("Could not open '$outfile' in write mode : $!");
+
+
     foreach my $record (@{$record_list}){
+
+        $record_ctr++;
 
         my $column_number = 0;
 
         foreach my $column_value (@{$record}){
 
-            my $column_name = $position_to_name_lookup->{$column_number};
+            $column_number++;
 
-            my $rules_record = $self->{_mapper_parser}->getRulesByColumnName($column_name);
-            if (!defined($rules_record)){
-                $self->{_logger}->logconfess("rules_record was not defined for column name '$column_name' column number '$column_number");
+            if (!exists $position_to_name_lookup->{$column_number}){
+                $self->{_logger}->fatal("position_to_name_lookup:" . Dumper $position_to_name_lookup);
+                $self->{_logger}->logconfess("column_number '$column_number' does not exist in the lookup");
             }
 
+            my $column_name = $position_to_name_lookup->{$column_number};
 
+            if ($self->{_mapper_parser}->hasRulesByColumnName($column_name)){
 
-            $column_number++;
+                print OUTFILE $column_value . "\n";
+
+                if (!exists $self->{_column_name_to_has_rules_ctr_lookup}->{$column_name}){
+                    $self->{_has_rules_ctr}++;
+                    $self->{_column_name_to_has_rules_ctr_lookup}->{$column_name}++;
+                }
+
+                my $rules_record = $self->{_mapper_parser}->getRulesByColumnName($column_name);
+                if (!defined($rules_record)){
+                    $self->{_logger}->logconfess("rules_record was not defined for column name '$column_name' column number '$column_number");
+                }
+
+                my $isatype = $rules_record->getIsaType();
+                if (defined($isatype)){
+                    print OUTFILE 'is_a => ' . $isatype . "\n";
+                }
+
+                if ($rules_record->hasRelationshipList()){
+
+                    my $list =  $rules_record->getRelationshipList();
+                    if (!defined($list)){
+                        $self->{_logger}->logconfess("relationship list was not defined");
+                    }
+
+                    foreach my $rel_list (@{$list}){
+                        my $relationship_name = $rel_list->[0];
+                        my $rel_column_number = $rel_list->[1];
+                        my $rel_value = $record->[$rel_column_number];
+
+                        print OUTFILE $relationship_name . ' => ' . $rel_value . "\n";
+                    }
+                }
+            }
+            else {
+
+                if (!exists $self->{_column_name_to_has_no_rules_ctr_lookup}->{$column_name}){
+                    $self->{_no_rules_ctr}++;
+                    $self->{_column_name_to_has_no_rules_ctr_lookup}->{$column_name}++;
+                }
+
+                $self->{_logger}->info("No rules for column '$column_name' - so will ignore.");
+            }
         }
     }
+
+    $self->{_logger}->info("Processed '$record_ctr' records");
+
+    if ($self->{_has_rules_ctr} > 0){
+        $self->{_logger}->info("Encountered '$self->{_has_rules_ctr}' columns names that did have some rules");
+    }
+
+    if ($self->{_no_rules_ctr} > 0){
+        $self->{_logger}->info("Encountered '$self->{_no_rules_ctr}' column names that did not have any rules");
+    }
+
+    close OUTFILE;
+
+    $self->{_logger}->info("Wrote records to '$outfile'");
+
+    print "Wrote records to '$outfile'\n";
 
 }
 

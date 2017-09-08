@@ -1,10 +1,11 @@
 package RDFMapperUtils::Mapper::Config::File::INI::Parser;
 
 use Moose;
+use Data::Dumper;
 use Carp;
 use Config::IniFiles;
 
-package RDFMapperUtils::Mapper::Config::Rules::Record;
+use RDFMapperUtils::Mapper::Config::Rules::Record;
 
 use constant TRUE => 1;
 use constant FALSE => 0;
@@ -25,7 +26,11 @@ sub BUILD {
 
     my $self = shift;
 
+    $self->_initLogger(@_);
+
     $self->{_is_parsed} = FALSE;
+
+    $self->_parseFile();
 }
 
 sub getInstance {
@@ -41,6 +46,19 @@ sub getInstance {
     }
 
     return $instance;
+}
+
+sub _initLogger {
+
+    my $self = shift;
+
+    my $logger = Log::Log4perl->get_logger(__PACKAGE__);
+
+    if (!defined($logger)){
+        confess "logger was not defined";
+    }
+
+    $self->{_logger} = $logger;
 }
 
 sub _isParsed {
@@ -78,9 +96,14 @@ sub _parseFile {
     if (!defined($file)){
         $self->{_logger}->logconfess("mapper config file was not defined");
     }
+
+    if (!-e $file){
+        $self->{_logger}->logconfess("file '$file' does not exist");
+    }
+
     my $cfg = new Config::IniFiles(-file => $file);
     if (!defined($cfg)){
-        confess "Could not instantiate Config::IniFiles";
+        $self->{_logger}->logconfess("Could not instantiate Config::IniFiles for mapping config file '$file'.  Please make sure the configuration INI file is formatted properly");
     }
 
     $self->{_cfg} = $cfg;
@@ -94,12 +117,11 @@ sub _create_rules_records {
 
     my $self = shift;
 
-    my $sections = $self->{_cfg}->Sections();
-    if (!defined($sections)){
-        $self->{_logger}->logconfess("sections was not defined");
-    }
+    my @sections = $self->{_cfg}->Sections();
+    
+    foreach my $section (@sections){
 
-    foreach my $section (@{$sections}){
+        print $section ."\n";
 
         if ($section eq 'file_to_rdf'){
             next;
@@ -112,17 +134,14 @@ sub _create_rules_records {
 
         $self->{_column_name_to_record_lookup}->{$section} = $record;
 
-        my $parameters = $self->{_cfg}->parameters($section);
-        if (!defined($parameters)){
-            $self->{_logger}->logconfess("parameters was not defined for section '$section'");
-        }
+        my @parameters = $self->{_cfg}->Parameters($section);
 
-        foreach my $parameter (@{$parameters}){
+        foreach my $parameter (@parameters){
 
-            if (exists $self->{_cfg}->exists($section, $parameter)){
+            if ($self->{_cfg}->exists($section, $parameter)){
 
                 my $value = $self->{_cfg}->val($section, $parameter);
-                if (!defined($val)){
+                if (!defined($value)){
                     $self->{_logger}->logconfess("val was not defined for section '$section' parameter '$parameter'");
                 }
 
@@ -140,6 +159,22 @@ sub _create_rules_records {
     }
 }
 
+sub hasRulesByColumnName {
+
+    my $self = shift;
+    my ($column_name) = @_;
+
+    if (!defined($column_name)){
+        $self->{_logger}->logconfess("column_name was not defined");
+    }
+
+    if (exists $self->{_column_name_to_record_lookup}->{$column_name}){
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 sub getRulesByColumnName {
     my $self = shift;
     my ($column_name) = @_;
@@ -152,14 +187,13 @@ sub getRulesByColumnName {
         return $self->{_column_name_to_record_lookup}->{$column_name};
     }
     else {
+        $self->{_logger}->fatal("column_name_to_record_lookup:" . Dumper $self->{_column_name_to_record_lookup});
         $self->{_logger}->logconfess("column name '$column_name' does not exist in the column name to rules record lookup");
     }
 }
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
-
-__END__
 
 =head1 NAME
 

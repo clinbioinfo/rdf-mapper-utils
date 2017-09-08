@@ -1,4 +1,4 @@
-package RDFMapperUtils::Manager;
+package RDFMapperUtils::ConfigFileGenerator;
 
 use Moose;
 use Cwd;
@@ -10,8 +10,8 @@ use Term::ANSIColor;
 use RDFMapperUtils::Logger;
 use RDFMapperUtils::Config::Manager;
 use RDFMapperUtils::File::Parser::Factory;
-use RDFMapperUtils::Mapper::Config::File::INI::Parser;
-use RDFMapperUtils::RDF::File::Writer::Factory;
+use RDFMapperUtils::Mapper::Config::File::INI::Writer;
+
 
 use constant TRUE  => 1;
 use constant FALSE => 0;
@@ -28,7 +28,6 @@ use constant DEFAULT_INDIR => File::Spec->rel2abs(cwd());
 
 use constant DEFAULT_INFILE_TYPE => 'csv';
 
-use constant DEFAULT_RDF_FILE_TYPE => 'turtle';
 
 ## Singleton support
 my $instance;
@@ -94,15 +93,6 @@ has 'outfile' => (
     required => FALSE
     );
 
-has 'rdf_file_type' => (
-    is       => 'rw',
-    isa      => 'Str',
-    writer   => 'setRDFFileType',
-    reader   => 'getRDFFileType',
-    required => FALSE,
-    default  => DEFAULT_RDF_FILE_TYPE
-    );
-
 has 'mapper_config_file' => (
     is       => 'rw',
     isa      => 'Str',
@@ -116,11 +106,11 @@ sub getInstance {
 
     if (!defined($instance)){
 
-        $instance = new RDFMapperUtils::Manager(@_);
+        $instance = new RDFMapperUtils::ConfigFileGenerator(@_);
 
         if (!defined($instance)){
 
-            confess "Could not instantiate RDFMapperUtils::Manager";
+            confess "Could not instantiate RDFMapperUtils::ConfigFileGenerator";
         }
     }
     return $instance;
@@ -134,15 +124,11 @@ sub BUILD {
 
     $self->_initConfigManager(@_);
     
-    $self->_initDataFileParserFactory(@_);
+    $self->_initParserFactory(@_);
 
-    $self->_initDataFileParser(@_);    
+    $self->_initParser(@_);    
 
-    $self->_initMapperConfigFileParser(@_);
-
-    $self->_initRDFFileWriterFactory(@_);
-
-    $self->_initRDFFileWriter(@_);
+    $self->_initMapperConfigFileWriter(@_);
 
     $self->{_logger}->info("Instantiated ". __PACKAGE__);
 }
@@ -172,7 +158,7 @@ sub _initConfigManager {
     $self->{_config_manager} = $manager;
 }
 
-sub _initDataFileParserFactory {
+sub _initParserFactory {
 
     my $self = shift;
 
@@ -182,104 +168,54 @@ sub _initDataFileParserFactory {
         $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::File::Parser::Factory");
     }
 
-    $self->{_data_file_parser_factory} = $factory;
+    $self->{_parser_factory} = $factory;
 
-    $self->{_data_file_parser_factory}->setType($self->getInfileType());
+    $self->{_parser_factory}->setType($self->getInfileType());
 }
 
-sub _initDataFileParser {
+sub _initParser {
 
     my $self = shift;
 
-    my $parser = $self->{_data_file_parser_factory}->create();
+    my $parser = $self->{_parser_factory}->create();
 
     if (!defined($parser)){
         $self->{_logger}->logconfess("parser was not defined");
     }
 
-    $self->{_data_file_parser} = $parser;
+    $self->{_parser} = $parser;
 
-    $self->{_data_file_parser}->setInfile($self->getInfile());
+    $self->{_parser}->setInfile($self->getInfile());
 }
 
-sub _initRDFFileWriterFactory {
+sub _initMapperConfigFileWriter {
 
     my $self = shift;
 
-    my $factory = RDFMapperUtils::RDF::File::Writer::Factory::getInstance(@_);
-    if (!defined($factory)){
-        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::RDF::File::Writer::Factory");
-    }
-
-    $factory->setType($self->getRDFFileType());
-
-    $self->{_rdf_file_writer_factory} = $factory;
-}
-
-sub _initRDFFileWriter {
-
-    my $self = shift;
-
-    my $writer = $self->{_rdf_file_writer_factory}->create();
+    my $writer = RDFMapperUtils::Mapper::Config::File::INI::Writer::getInstance(@_);
 
     if (!defined($writer)){
-        $self->{_logger}->logconfess("RDF file writer was not defined");
+        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::Mapper::Config::File::INI::Writer");
     }
 
-    $writer->setInfile($self->getInfile());
-
-    $writer->setInfileType($self->getInfileType());
-
-    $writer->setMapperConfigFile($self->getMapperConfigFile());
-
-    $writer->setOutfile($self->getOutfile());
-    
-    $self->{_rdf_file_writer} = $writer;
+    $self->{_mapper_config_file_writer} = $writer;
 }
 
-
-sub _initMapperConfigFileParser {
+sub generateMapperConfigFile {
 
     my $self = shift;
 
-    my $parser = RDFMapperUtils::Mapper::Config::File::INI::Parser::getInstance(@_);
-
-    if (!defined($parser)){
-        $self->{_logger}->logconfess("Could not instantiate RDFMapperUtils::Mapper::Config::File::INI::Parser");
+    my $column_names_list = $self->{_parser}->getColumnNamesList();
+    if (!defined($column_names_list)){
+        $self->{_logger}->logconfess("column_names_list was not defined");
     }
 
-    $self->{_mapper_config_file_parser} = $parser;
-}
+    $self->{_mapper_config_file_writer}->setColumnNamesList($column_names_list);
 
-
-sub generateRDFFile {
-
-    my $self = shift;
-
-    my $record_list = $self->{_data_file_parser}->getRecordList();
-    if (!defined($record_list)){
-        $self->{_logger}->logconfess("record_list was not defined");
-    }
-
-    my $position_to_name_lookup = $self->{_data_file_parser}->getPositionToNameLookup();
-    if (!defined($position_to_name_lookup)){
-        $self->{_logger}->logconfess("position_to_name_lookup was not defined");
-    }
-
-    my $name_to_position_lookup = $self->{_data_file_parser}->getPositionToNameLookup();
-    if (!defined($name_to_position_lookup)){
-        $self->{_logger}->logconfess("name_to_position_lookup was not defined");
-    }
-
-    $self->{_rdf_file_writer}->setRecordList($record_list);
-
-    $self->{_rdf_file_writer}->setPositionToNameLookup($position_to_name_lookup);
-
-    $self->{_rdf_file_writer}->setNameToPositionLookup($name_to_position_lookup);
+    $self->{_mapper_config_file_writer}->setInfile($self->getInfile());
     
-    $self->{_rdf_file_writer}->writeFile();
+    $self->{_mapper_config_file_writer}->writeFile();
 }
-
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

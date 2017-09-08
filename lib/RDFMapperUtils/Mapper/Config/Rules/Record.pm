@@ -50,6 +50,23 @@ sub addRelationship {
     push(@{$self->{_relationship_list}}, [$relationship_type, $column_name]);
 }
 
+sub hasRelationshipList {
+
+    my $self = shift;
+
+    if (exists $self->{_relationship_list}){
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+sub getRelationshipList {
+
+    my $self = shift;
+
+    return $self->{_relationship_list};
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
