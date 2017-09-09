@@ -121,8 +121,6 @@ sub _create_rules_records {
     
     foreach my $section (@sections){
 
-        print $section ."\n";
-
         if ($section eq 'file_to_rdf'){
             next;
         }

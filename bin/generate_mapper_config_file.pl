@@ -141,6 +141,26 @@ sub checkCommandLineArguments {
     	&pod2usage({-exitval => 1, -verbose => 1, -output => \*STDOUT});
     }
 
+    my $fatalCtr=0;
+
+    if (!defined($infile)){
+        
+        printBoldRed("--infile was not specified");
+        
+        $fatalCtr++;
+    }
+    else {
+
+        $infile = File::Spec->rel2abs($infile);
+
+        &checkInfileStatus($infile);
+    }
+
+
+    if ($fatalCtr> 0 ){
+        die "Required command-line arguments were not specified\n";
+    }
+
     if (!defined($verbose)){
 
         $verbose = DEFAULT_VERBOSE;
@@ -200,27 +220,6 @@ sub checkCommandLineArguments {
 
         printYellow("--infile_type was not specified and therefore was set to default '$infile_type'");        
     }
-
-    my $fatalCtr=0;
-
-    if (!defined($infile)){
-        
-        printBoldRed("--infile was not specified");
-        
-        $fatalCtr++;
-    }
-    else {
-
-        $infile = File::Spec->rel2abs($infile);
-
-        &checkInfileStatus($infile);
-    }
-
-    if ($fatalCtr> 0 ){
-        die "Required command-line arguments were not specified\n";
-    }
-
-
 }
 
 sub getInputFileBasename {

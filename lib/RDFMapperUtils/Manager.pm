@@ -266,7 +266,7 @@ sub generateRDFFile {
         $self->{_logger}->logconfess("position_to_name_lookup was not defined");
     }
 
-    my $name_to_position_lookup = $self->{_data_file_parser}->getPositionToNameLookup();
+    my $name_to_position_lookup = $self->{_data_file_parser}->getNameToPositionLookup();
     if (!defined($name_to_position_lookup)){
         $self->{_logger}->logconfess("name_to_position_lookup was not defined");
     }

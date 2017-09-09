@@ -150,9 +150,15 @@ sub writeFile {
         $self->{_logger}->logconfess("record_list was not defined");
     }
 
-    my $outfile = $self->getOutfile();
-
     my $position_to_name_lookup = $self->getPositionToNameLookup();
+    if (!defined($position_to_name_lookup)){
+        $self->{_logger}->logconfess("position_to_name_lookup was not defined");
+    }
+
+    my $name_to_position_lookup = $self->getNameToPositionLookup();
+    if (!defined($name_to_position_lookup)){
+        $self->{_logger}->logconfess("name_to_position_lookup was not defined");
+    }
 
     my $record_ctr = 0;
 
@@ -209,9 +215,29 @@ sub writeFile {
                     }
 
                     foreach my $rel_list (@{$list}){
+                        
                         my $relationship_name = $rel_list->[0];
-                        my $rel_column_number = $rel_list->[1];
-                        my $rel_value = $record->[$rel_column_number];
+
+                        ## Could be column name or column number
+                        my $rel_column = $rel_list->[1];
+
+                        my $rel_value;
+
+                        if (($rel_column =~ /^\d+$/) && ($rel_column == int($rel_column))){
+                            ## Is column number
+                            $rel_value = $record->[$rel_column];        
+                        }
+                        else {
+                            ## Is column name
+                            if (!exists $name_to_position_lookup->{$rel_column}){
+                                $self->{_logger}->fatal("name_to_position_lookup:" . Dumper $name_to_position_lookup);
+                                $self->{_logger}->logconfess("rel_column '$rel_column' does not exist in the lookup");
+                            }
+
+                            my $rel_column_number = $name_to_position_lookup->{$rel_column};
+                            
+                            $rel_value = $record->[$rel_column_number];
+                        }
 
                         print OUTFILE $relationship_name . ' => ' . $rel_value . "\n";
                     }

@@ -122,9 +122,18 @@ sub writeFile {
         print OUTFILE ";;transform='your value here'\n";
         print OUTFILE ";; Next, using a comma-separated list- specify the type to assign to the values in this column.\n";
         print OUTFILE "isa_type=\n";
-        print OUTFILE ";; Next, specify the relationship and the corresponding column name e.g.: relationship-type=column-name. You can insert as many as needed.\n";
-        print OUTFILE "'your-relationship-1'='your-column-1'\n";
-        print OUTFILE "'your-relationship-2'='your-column-2'\n";
+        print OUTFILE ";; Next, specify the relationship and the corresponding column name e.g.: relationship-type=column-number. You can insert as many as needed.\n";
+        print OUTFILE "'your-relationship-1'='your-column-number-1'\n";
+        print OUTFILE "'your-relationship-2'='your-column-number-2'\n";
+        print OUTFILE ";; Perfectly fine to specify more than one relationship with the same column.\n";
+        print OUTFILE "'your-relationship-3'='your-column-number-3'\n";
+        print OUTFILE "'your-relationship-4'='your-column-number-3'\n";
+        print OUTFILE ";; Alternatively, you can specify the relationship and the corresponding column name e.g.: relationship-type=column-name. You can insert as many as needed.\n";
+        print OUTFILE "'your-relationship-1'='your-column-name-1'\n";
+        print OUTFILE "'your-relationship-2'='your-column-name-2'\n";
+        print OUTFILE ";; Perfectly fine to specify more than one relationship with the same column.\n";
+        print OUTFILE "'your-relationship-3'='your-column-name-3'\n";
+        print OUTFILE "'your-relationship-4'='your-column-name-3'\n";
     }
 
     close OUTFILE;
